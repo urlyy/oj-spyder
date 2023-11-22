@@ -20,10 +20,12 @@ def get_records(user_id,last_updatetime=None):
             "contest_time":contest_time
         })
     return records
-    
 
-if __name__ == '__main__':
+def main():
     users = ['tourist']
+    all_records = dict()
     for user in users:
         records = get_records(user)
         print(records)
+        all_records[user] = records
+    return all_records

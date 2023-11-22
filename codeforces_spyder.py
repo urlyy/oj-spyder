@@ -49,6 +49,8 @@ def get_records(page:Page,user_id,last_updatetime:str=None):
     return {"total_submmit_num":total_submmit_num,"records":records}
 
 def main(users:list):
+    all_records = dict()
+    users = ['Paper_the_boar','jsulyy','jsu-ysj']
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=False)
         context = browser.new_context()
@@ -56,9 +58,7 @@ def main(users:list):
         for user_id in users:
             record_msg = get_records(page,user_id)
             print(user_id,record_msg['total_submmit_num'],len(record_msg['records']))
+            all_records[user_id] = record_msg
         context.close()
         browser.close()
-        
-if __name__ == '__main__':
-    users = ['Paper_the_boar','jsulyy','jsu-ysj']
-    main(users)
+    return all_records

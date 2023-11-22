@@ -57,44 +57,28 @@ def login(page:Page,user:User):
     print(user)
     page.goto("https://leetcode.cn/accounts/login/?next=%2F")
     page.get_by_text("帐号密码登录").click()
-    page.get_by_placeholder("手机/邮箱").fill(user.phoneOrEmail)
+    page.get_by_placeholder("手机/邮箱").fill(str(user.phoneOrEmail))
     page.get_by_placeholder("输入密码").fill(user.pwd)
     sleep(1)
     page.get_by_role("button", name="登录").click()
     with page.expect_response('https://leetcode.cn/graphql/') as response_info:
         response = response_info.value
-    # if response.status == 200:
-    #     break
-    # else:
     
-    
+
+def check_handle_response(resp:Response):
+    if resp.url.find('graphql') != -1:
+        data:dict = resp.json()['data']
+        print(data.keys())
+        if "userProfileQuestions" in data.keys():
+            return True
+    return False
 
 # 爬到所有已通过的题目
 def get_records(page:Page,last_updatetime=None):
-    # 两个线程通信
-    _records = None
-    def handle_request(route:Route,req:Request):
-        if req.method == 'POST' and req.url.find('graphql') != -1:
-            # 获取请求的内容
-            request_payload = req.post_data
-            print('GraphQL 请求:', req.response())
-            # 继续处理请求
-            route.continue_()
-        else:
-            # 其他请求不做处理，继续请求
-            route.continue_()
-    page.route('**', lambda route, request: handle_request(route, request))
-    def handle_response(resp:Response):
-        global _records
-        # print(" "*20+resp.url)
-        if resp.url.find('graphql') != -1:
-            data:dict = resp.json()['data']
-            if "userProfileQuestions" in data.keys():
-                # print("近来了")
-                _records = data["userProfileQuestions"]["questions"]
-    page.on("response",handle_response)
     page.goto('https://leetcode.cn/progress/')
-    page.wait_for_selector('.highcharts-root')
+    # page.wait_for_selector('.highcharts-root')
+    response = page.expect_response(check_handle_response)._event.value
+    _records = response.json()['data']["userProfileQuestions"]["questions"]
     number_wrapper = page.query_selector('div[class*="NumbersWrapper"]')
     ac_num = number_wrapper.query_selector('div:nth-child(1)').inner_text()
     # submit_no_ac_num = number_wrapper.query_selector('div:nth-child(2)')
@@ -107,19 +91,9 @@ def get_records(page:Page,last_updatetime=None):
     pagination = page.query_selector('div[class*="PaginationWrapper"] > div')
     page_num = 1
     _records = []
-    def check_handle_response(resp:Response):
-        if resp.url.find('graphql') != -1:
-            data:dict = resp.json()['data']
-            if "userProfileQuestions" in data.keys():
-                _records = data["userProfileQuestions"]["questions"]
-                return True
-        return False
+    
     while not finish:
-        # 空转等待另一个线程获得response
-        while _records is None:
-            pass
         print(f"当前在{page_num}页")
-        # page.expect_response(check_handle_response)
         # _records = page.query_selector_all('.ant-table-tbody > tr')
         for record in _records:
             # submit_question = record.query_selector('td:nth-child(3)').inner_text()
@@ -147,9 +121,10 @@ def get_records(page:Page,last_updatetime=None):
         if last_button.inner_text() == str(page_num):
             break
         page_num += 1
-        page.on("response",handle_response)
         next_button = pagination.query_selector('button:last-child')
         next_button.click()
+        response = page.expect_response(check_handle_response)._event.value
+        _records = response.json()['data']["userProfileQuestions"]["questions"]
     return {"records":records,"profile":{"ac_num":ac_num,"total_submit_num":total_submit_num,"submit_ac_num":submit_ac_num}}
         
     
@@ -161,7 +136,7 @@ def main(users):
     for user in users:
         login(page,user)
         records_msg = get_records(page)
-        print(len(records_msg['records']))
+        print(len(records_msg['records']),records_msg['records'])
     browser.close()
     p.stop()
 
