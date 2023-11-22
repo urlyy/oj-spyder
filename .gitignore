@@ -1,0 +1,4 @@
+driver/
+test*
+playwright_script.py
+config.yaml
